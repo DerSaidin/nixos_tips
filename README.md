@@ -50,6 +50,8 @@ For a different version you would need to substitute the following bits of the e
 - "0mxhz3f0ayz0nggndbikp44kx307yxf16qzsv46hni6p8z1ffr0y"
 - "5.4.41"
 
+NOTE: I had an old generation on 5.4.41. I rebuild a 5.4.41 generation with this approach. The newly build generation has other differences (many things on the nix-channel have been updated), and only the old generation build of 5.4.41 works for running a certain game. The unstable channel has 5.6 and 5.7 on it now, so I'm guessing other packages in unstable were not impacted by this kernel configuration and are not compatible.
+
 ### NixOS Deleting System Generations
 
 ```
