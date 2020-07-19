@@ -6,21 +6,6 @@ sudo journalctl -b -1
 
 https://github.com/NixOS/nixpkgs/issues/25820
 
-### AMD 2200G embedded graphics
-
-```
-  boot.kernelPatches = [
-      { name = "amdgpu-config";
-        patch = null;
-        extraConfig = ''
-          DRM_AMD_DC_DCN1_0 y
-        '';
-      }
-  ];
-```
-
-https://discourse.nixos.org/t/how-to-get-xserver-working-on-amd-raven-ridge/987
-
 ### NixOS Select Kernel
 
 ```
@@ -161,3 +146,21 @@ LD_LIBRARY_PATH=$CMAKE_LIBRARY_PATH
 
 https://ejpcmac.net/blog/about-using-nix-in-my-development-workflow/
   ([alternate link](https://medium.com/@ejpcmac/about-using-nix-in-my-development-workflow-12422a1f2f4c))
+
+
+### AMD 2200G embedded graphics
+
+(This should no longer be necessary for kernels after about 4.19 or so)
+
+```
+  boot.kernelPatches = [
+      { name = "amdgpu-config";
+        patch = null;
+        extraConfig = ''
+          DRM_AMD_DC_DCN1_0 y
+        '';
+      }
+  ];
+```
+
+https://discourse.nixos.org/t/how-to-get-xserver-working-on-amd-raven-ridge/987
