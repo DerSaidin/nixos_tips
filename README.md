@@ -1,6 +1,4 @@
-### Cleanup unused packages
-
-#### User
+### Clean up User generations
 
 ```shell
 // List generations
@@ -19,7 +17,7 @@ $ nix-env --delete-generations 30d
 $ nix-collect-garbage
 ```
 
-#### System
+### Clean up System generations
 
 ```shell
 // List generations
@@ -51,6 +49,8 @@ https://github.com/NixOS/nixpkgs/issues/25820
 https://nixos.wiki/wiki/Choose_your_kernel_on_NixOS
 
 ### NixOS Select Kernel Point Release
+
+See currently available kernel versions:
 
 https://github.com/NixOS/nixpkgs/tree/master/pkgs/os-specific/linux/kernel
 
@@ -84,14 +84,6 @@ For a different version you would need to substitute the following bits of the e
 - "5.4.41"
 
 NOTE: I had an old generation on 5.4.41. I rebuild a 5.4.41 generation with this approach. The newly build generation has other differences (many things on the nix-channel have been updated), and only the old generation build of 5.4.41 works for running a certain game. The unstable channel has 5.6 and 5.7 on it now, so I'm guessing other packages in unstable were not impacted by this kernel configuration and are not compatible.
-
-### NixOS Deleting System Generations
-
-```
-nix-env --profile /nix/var/nix/profiles/system --list-generations
-
-nix-env --profile /nix/var/nix/profiles/system --delete-generations 10
-```
 
 ### Package Dependencies
 
