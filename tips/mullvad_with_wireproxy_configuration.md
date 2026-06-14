@@ -117,7 +117,7 @@ BindAddress = 127.0.0.1:25355
 
 Note that the ports are different.
 
-### Firefox proxy config
+### Firefox Create Proxy Profile
 
 ```
 firefox -p
@@ -185,3 +185,40 @@ Key changes:
 * Change `Name` (added ` Proxy1`) 
 * Remove `profile-manager-window action`
 
+###  Firefox Proxy Profile Further Setup
+
+#### Theme
+
+I like to pick a theme with distinct colors, so it is obvious if I'm using the VPN or not.
+
+#### WebRTC Leaks
+
+https://mullvad.net/en/check
+
+If WebRTC leaks, a simple fix is by disabling it:
+
+`media.peerconnection.enabled =	false`
+
+#### Geo Location to match VPN exit
+
+Go to about:config
+
+* `geo.enabled = true`
+* `geo.provider.network.url = data:application/json,{"location": {"lat": 40.7590, "lng": -73.9845}, "accuracy": 27000.0}`
+
+  * Use Google Maps to find coordinates to roughly match your exit node.
+
+* `geo.provider.testing = true`
+* `geo.provider.use_geoclue = false`
+
+May need to clear cookies or restart firefox.
+
+#### Privacy Setting  (optional)
+
+Settings > Privacy & Security
+
+Browser Privacy = Strict / Custom
+
+Always use private browsing mode = true
+
+HTTPS-ONly mode = all windows
