@@ -1,4 +1,4 @@
-### Debug build of package
+### Nix package debug build
 
 ```
 nix-build -E 'with import <nixpkgs> { }; enableDebugging PACKAGENAME'

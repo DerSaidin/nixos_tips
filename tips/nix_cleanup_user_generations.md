@@ -1,4 +1,4 @@
-### Clean up User generations
+### Nix Clean up User generations
 
 ```shell
 // List generations

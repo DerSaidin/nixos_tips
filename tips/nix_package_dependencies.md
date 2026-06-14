@@ -1,4 +1,4 @@
-### Package Dependencies
+### Nix Package Dependencies
 
 What is in the current system?
 ```
