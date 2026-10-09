@@ -57,6 +57,47 @@ zfs create \
 mkdir -p /mnt
 mount -t zfs rpool/root /mnt
 
+# CREATE A NIX PARTITION (adding this step is untested)
+#
+# The Nix store holds millions of small files that are written once, never
+# modified, and can always be rebuilt or re-downloaded.
+# It also means `zfs list` can easily show size of nix store.
+#
+# Options (according to AI recommendations):
+#
+#   mountpoint=legacy  Mounted by NixOS via fileSystems."/nix", like root.
+#   atime=off          Nix never reads access times (GC uses roots, not atime),
+#                      so recording them only turns every read into a write.
+#   compression=zstd   Store contents are mostly text and binaries, which
+#                      typically compress 1.5-2x. Use lz4 if CPU is tight.
+#   xattr=sa           Store extended attributes in the inode instead of
+#                      hidden directories; less I/O with this many files.
+#   dnodesize=auto     Gives xattr=sa room in the dnode.
+#   com.sun:auto-snapshot=false
+#                      Snapshots would keep garbage-collected paths alive,
+#                      so nix-collect-garbage would free no space. The store
+#                      is reproducible, so it doesn't need snapshots.
+#
+# Deliberately left at defaults:
+#   dedup=off          Use nix.settings.auto-optimise-store instead; it
+#                      hard-links identical files without ZFS dedup's RAM cost.
+#   sync=standard      sync=disabled can leave paths the Nix database marks
+#                      valid but whose contents were never written to disk.
+#   recordsize=128K    Most store files are smaller than one record anyway.
+#
+# Compression performance data:
+# https://github.com/openzfs/zfs/pull/9735#issuecomment-570082078
+zfs create \
+    -o mountpoint=legacy \
+    -o atime=off \
+    -o compression=zstd \
+    -o xattr=sa \
+    -o dnodesize=auto \
+    -o com.sun:auto-snapshot=false \
+    rpool/nix
+mkdir -p /mnt/nix
+mount -t zfs rpool/nix /mnt/nix
+
 # CREATE A HOME PARTITION
 zfs create \
     -o mountpoint=legacy \
@@ -79,6 +120,12 @@ nixos-generate-config --root /mnt
 #   boot.supportedFilesystems = [ "zfs" ];
 #   boot.zfs.enableUnstable = true;
 #   services.zfs.autoScrub.enable = true;
+
+#   # For https://nixos.wiki/wiki/Storage_optimization one of
+#   nix.settings.auto-optimise-store = true; (image build time)
+#    XOR
+#   nix.optimise.automatic = true;     (3:45am)
+
 # 
 #   networking.hostName = "pants";
 #   networking.hostId = "abcdef01";
@@ -88,7 +135,7 @@ nixos-generate-config --root /mnt
 nixos-install
 
 # NOW CLEANUP & REBOOT
-umount /mnt/{home,boot}
+umount /mnt/{home,boot,nix}
 umount /mnt
 swapoff -a
 zpool export -a
