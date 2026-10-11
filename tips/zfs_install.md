@@ -2,6 +2,8 @@
 
 ### Installing NixOS with encrypted ZFS root
 
+First see https://nixos.wiki/wiki/ZFS -- which is probably better / more up to date than below
+
 ```sh
 #!/bin/sh
 
