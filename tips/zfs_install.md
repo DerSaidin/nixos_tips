@@ -4,6 +4,12 @@
 
 First see https://nixos.wiki/wiki/ZFS -- which is probably better / more up to date than below
 
+Some other examples:
+* https://notthebe.ee/blog/nixos-ephemeral-zfs-root/
+* https://gist.github.com/byrongibson/1578914d03a5c0a01a13f9ec53ee0b0a
+* https://gist.github.com/whimbree/c13dd799693851de98936c3105111403
+* https://git.thomasave.be/thomasave/dotfiles/src/branch/master/README.md
+
 ```sh
 #!/bin/sh
 
