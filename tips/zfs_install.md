@@ -65,11 +65,7 @@ zfs create \
 mkdir -p /mnt
 mount -t zfs rpool/root /mnt
 
-# CREATE A NIX PARTITION (adding this step is untested)
-#
-# The Nix store holds millions of small files that are written once, never
-# modified, and can always be rebuilt or re-downloaded.
-# It also means `zfs list` can easily show size of nix store.
+# CREATE PARTITIONS FOR SYSTEM STUFF (adding this step is untested)
 #
 # Options (according to AI recommendations):
 #
@@ -86,31 +82,79 @@ mount -t zfs rpool/root /mnt
 #                      so nix-collect-garbage would free no space. The store
 #                      is reproducible, so it doesn't need snapshots.
 #
-# Deliberately left at defaults:
-#   dedup=off          Use nix.settings.auto-optimise-store instead; it
-#                      hard-links identical files without ZFS dedup's RAM cost.
-#   sync=standard      sync=disabled can leave paths the Nix database marks
-#                      valid but whose contents were never written to disk.
-#   recordsize=128K    Most store files are smaller than one record anyway.
-#
 # Compression performance data:
 # https://github.com/openzfs/zfs/pull/9735#issuecomment-570082078
+
+# Rebuildable, no snapshots
 zfs create \
-    -o mountpoint=legacy \
-    -o atime=off \
-    -o compression=zstd \
-    -o xattr=sa \
-    -o dnodesize=auto \
-    -o com.sun:auto-snapshot=false \
-    rpool/nix
+  -o canmount=off \
+  -o mountpoint=none \
+  -o com.sun:auto-snapshot=false \
+  rpool/local
+
+zfs create \
+  -o mountpoint=legacy \
+  -o compression=zstd \
+  -o xattr=sa \
+  -o acltype=posixacl \
+  -o dnodesize=auto \
+  -o atime=off \
+  -o com.sun:auto-snapshot=false \
+  rpool/local/nix
 mkdir -p /mnt/nix
-mount -t zfs rpool/nix /mnt/nix
+mount -t zfs rpool/local/nix /mnt/nix
+
+zfs create \
+  -o mountpoint=legacy \
+  -o compression=zstd \
+  -o xattr=sa \
+  -o acltype=posixacl \
+  -o dnodesize=auto \
+  -o atime=off \
+  -o quota=10G \
+  -o com.sun:auto-snapshot=false \
+  rpool/local/var-log
+mkdir -p /mnt/var/log
+mount -t zfs rpool/local/var-log /mnt/var/log
+
+# Snapshotted
+zfs create \
+  -o mountpoint=legacy \
+  -o compression=zstd \
+  -o xattr=sa \
+  -o acltype=posixacl \
+  -o dnodesize=auto \
+  -o atime=off \
+  -o com.sun:auto-snapshot=true \
+  rpool/var-lib
+mkdir -p /mnt/var/lib
+mount -t zfs rpool/local/var-lib /mnt/var/lib
+
+zfs create \
+  -o mountpoint=legacy \
+  -o compression=zstd \
+  -o xattr=sa \
+  -o acltype=posixacl \
+  -o dnodesize=auto \
+  -o atime=off \
+  -o com.sun:auto-snapshot=true \
+  rpool/nixos-config
+mkdir -p /mnt/etc/nixos
+mount -t zfs rpool/nixos-config /mnt/etc/nixos
+
+# Reserved space, never mounted
+zfs create \
+  -o canmount=off \
+  -o mountpoint=none \
+  -o refreservation=10G \
+  rpool/reserved
 
 # CREATE A HOME PARTITION
 zfs create \
-    -o mountpoint=legacy \
-    -o compression=on \
-    rpool/home
+  -o mountpoint=legacy \
+  -o compression=zstd \
+  -o com.sun:auto-snapshot=true \
+  rpool/home
 mkdir -p /mnt/home
 mount -t zfs rpool/home /mnt/home
 
