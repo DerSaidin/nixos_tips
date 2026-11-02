@@ -118,6 +118,8 @@ mkdir -p /mnt/var/log
 mount -t zfs rpool/local/var-log /mnt/var/log
 
 # Snapshotted
+# Needs acltype=posixacl so e.g. users can get ACLs for their own core files, otherwise see: 
+#   `systemd-coredump[2317015]: Failed to adjust ACL of the coredump: Operation not supported`
 zfs create \
   -o mountpoint=legacy \
   -o compression=zstd \
