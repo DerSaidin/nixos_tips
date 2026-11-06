@@ -12,15 +12,11 @@ All the following configuration is in `/etc/nixos/configuration.nix`
   services.mullvad-vpn.enable = true;
 ```
 
-Install wireproxy
+Create wireproxy user, and setup two wireproxy services running simultaneously for
+multiple configurations.
 
-```
-  environment.systemPackages = with pkgs; [
-    wireproxy
-  ];
-```
-
-Create wireproxy user, and setup two wireproxy service running simultaneously for two configurations 
+The services reference `${pkgs.wireproxy}` directly, so wireproxy does not need to be in
+`environment.systemPackages`.
 
 ```
   users.groups.wireproxy = {};
@@ -29,33 +25,28 @@ Create wireproxy user, and setup two wireproxy service running simultaneously fo
     group = "wireproxy";
   };
 
-  environment.etc = {
-    "wireproxy/wireguard_1.conf" = {
-        source = ./wireguard_1.conf;
-    };
-    "wireproxy/wireguard_2.conf" = {
-        source = ./wireguard_2.conf;
-    };
-  };
-
-  systemd.services.wireproxy_1 = {
-    description = "1 WireGuard client that exposes itself as a socks5 proxy";
+  # WireGuard configs contain private keys, so they live outside the nix store
+  # (root:root 0400 in /etc/wireproxy) and are handed to the service via LoadCredential.
+  systemd.services.wireproxy_aaa = {
+    description = "AAA WireGuard client that exposes itself as a socks5 proxy";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
     serviceConfig = {
-      ExecStart = "${pkgs.wireproxy}/bin/wireproxy -c /etc/wireproxy/wireguard_1.conf";
+      LoadCredential = "wg.conf:/etc/wireproxy/wireguard_aaa.conf";
+      ExecStart = "${pkgs.wireproxy}/bin/wireproxy -c \${CREDENTIALS_DIRECTORY}/wg.conf";
       Restart = "always";
       User = "wireproxy";
       Group = "wireproxy";
     };
   };
-  
-  systemd.services.wireproxy_2 = {
-    description = "2 WireGuard client that exposes itself as a socks5 proxy";
+
+  systemd.services.wireproxy_bbb = {
+    description = "B WireGuard client that exposes itself as a socks5 proxy";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
     serviceConfig = {
-      ExecStart = "${pkgs.wireproxy}/bin/wireproxy -c /etc/wireproxy/wireguard_2.conf";
+      LoadCredential = "wg.conf:/etc/wireproxy/wireguard_bbb.conf";
+      ExecStart = "${pkgs.wireproxy}/bin/wireproxy -c \${CREDENTIALS_DIRECTORY}/wg.conf";
       Restart = "always";
       User = "wireproxy";
       Group = "wireproxy";
@@ -63,20 +54,31 @@ Create wireproxy user, and setup two wireproxy service running simultaneously fo
   };
 ```
 
-### Wireguard config
+You may want to replace the aaa bbb with whatever country you chose as the exit.
 
-The `source = ./wireguard_1.conf;` above means we should have
-`/etc/nixos/wireguard_1.conf` to provide the content for
-`/etc/wireproxy/wireguard_1.conf`
+#### Why LoadCredential
 
-Go to https://mullvad.net/en/account/wireguard-config to generate
-`/etc/nixos/wireguard_1.conf`.
+The WireGuard configs contain private keys. Anything referenced from `configuration.nix` as a
+path (e.g. `environment.etc."...".source = ./wireguard_aaa.conf;`) gets copied into
+`/nix/store`, which is world readable. So instead:
 
-Download the configuration to and save at `/etc/nixos/wireguard_1.conf`.
+* The configs are installed manually to `/etc/wireproxy`, owned `root:root` with mode `0400`
+  (directory `0700`), so they never enter the nix store and only root can read them.
+* `LoadCredential` makes systemd (running as root) read the file at service start and expose
+  a private copy at `$CREDENTIALS_DIRECTORY/wg.conf`, readable only by that service's
+  `wireproxy` user.
+* The `\${CREDENTIALS_DIRECTORY}` is escaped in nix so it reaches systemd literally, and
+  systemd expands it at runtime.
+
+### Wireguard config setup
+
+Go to https://mullvad.net/en/account/wireguard-config and generate a configuration.
+Download it and save it (somewhere temporary, e.g. the current directory) as
+`wireguard_aaa.conf`.
 
 Because we have multiple configurations, we will change where the proxy is serving locally.
 
-Add this to the end of `wireguard_1.conf`:
+Add the following to the end of `wireguard_aaa.conf`:
 
 ```
 # Socks5 creates a socks5 proxy on your LAN, and all traffic would be routed via wireguard.
@@ -94,9 +96,10 @@ BindAddress = 127.0.0.1:25344
 BindAddress = 127.0.0.1:25345
 ```
 
-Generate the second one (use a separate device key for each one). 
+Generate the second one for the second exit as `wireguard_bbb.conf`.
+You must use a separate device key for each one.
 
-Add this to the end of `wireguard_2.conf`:
+Add the following to the end of `wireguard_bbb.conf`:
 
 ```
 
@@ -117,6 +120,31 @@ BindAddress = 127.0.0.1:25355
 
 Note that the ports are different.
 
+### Install the Wireguard configs
+
+Install both configs into `/etc/wireproxy`, readable only by root:
+
+```
+sudo install -d -m 0700 /etc/wireproxy
+sudo install -m 0400 -o root -g root wireguard_aaa.conf wireguard_bbb.conf /etc/wireproxy
+```
+
+Then remove the downloaded copies (they contain the private keys):
+
+```
+rm wireguard_aaa.conf wireguard_bbb.conf
+```
+
+Do not put these files in `/etc/nixos` or reference them from `configuration.nix`, or they
+will be copied into the world-readable nix store.
+
+Apply the configuration with `sudo nixos-rebuild switch`. If you later change a config in
+`/etc/wireproxy`, restart the service so it reloads the credential:
+
+```
+sudo systemctl restart wireproxy_aaa wireproxy_bbb
+```
+
 ### Firefox Create Proxy Profile
 
 ```
@@ -131,7 +159,7 @@ If you set a SOCKS username and password, it will not work -- firefox cannot con
 
 HTTP Proxy:  127.0.0.1   Port: 25345
 
-(matching `[http] BindAddress` in `wireguard_1.conf`)
+(matching `[http] BindAddress` in `wireguard_aaa.conf`)
 
 Go to mullvad.net to test
 
